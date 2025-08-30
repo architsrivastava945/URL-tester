@@ -15,12 +15,15 @@ def predict():
 
     if 'url' not in data:
         return jsonify({"error": "Missing 'url' field"}), 400
-
+    
     url = data['url']
+    
+    print(f"Analyzing URL: {url}")
+    
     features = extract_features(url)
     features_df = [list(features.values())]
     prediction = model.predict(features_df)[0]
-    result = "phishing" if prediction == 1 else "safe"
+    result = "Unsafe" if prediction == 1 else "safe"
 
     return jsonify({"url": url, "result": result})
 

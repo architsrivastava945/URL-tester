@@ -163,7 +163,7 @@
                     </div>
 
                     <!-- Result Display Area -->
-                    <div id="result-box" class="bg-gray-800/50 border border-gray-700 rounded-xl p-6 mt-8">
+                    <div id="result-box" class="bg-gray-800/50 border-gray-700 rounded-xl p-6 mt-8">
                         <h3 id="result-status" class="text-2xl font-bold text-center mb-4"></h3>
                         <p id="result-message" class="text-gray-400 text-center text-md"></p>
                     </div>
@@ -178,10 +178,8 @@
             <h2 class="text-3xl font-bold mb-2 text-white">Meet the Team</h2>
             <p class="text-gray-400 mb-12">The developers behind this project.</p>
             
-            <!-- UPDATED: Removed 'flex-wrap' to keep cards in a single line -->
             <div class="flex justify-center gap-8">
                 <!-- Developer 1 -->
-                <!-- UPDATED: Changed width classes for better side-by-side layout -->
                 <div class="w-1/3 max-w-xs">
                     <div class="team-card bg-gray-800 p-6 rounded-xl border border-gray-700 h-full flex flex-col justify-between">
                         <div>
@@ -253,6 +251,115 @@
             cardContainer.style.setProperty('--glow-x', `${x}px`);
             cardContainer.style.setProperty('--glow-y', `${y}px`);
         });
+
+        // --- NEW: API Integration and Form Handling ---
+
+        // 1. Get references to all the HTML elements we need to interact with.
+        const urlForm = document.getElementById('url-form');
+        const urlInput = document.getElementById('url-input');
+        const checkButton = document.getElementById('check-button');
+        const loader = document.getElementById('loader');
+        const resultBox = document.getElementById('result-box');
+        const resultStatus = document.getElementById('result-status');
+        const resultMessage = document.getElementById('result-message');
+
+        // 2. Add an event listener for the 'submit' event on the form.
+        // Using 'async' here allows us to use 'await' inside for the fetch call.
+        urlForm.addEventListener('submit', async (event) => {
+            // 2a. This prevents the default form submission behavior, which is to reload the page.
+            event.preventDefault();
+
+            // 2b. Get the URL the user typed from the input field.
+            const urlToCheck = urlInput.value;
+
+            // --- UI Updates: Start Loading State ---
+            resultBox.classList.remove('show'); // Hide any previous result
+            loader.classList.remove('hidden'); // Show the loading spinner
+            checkButton.disabled = true; // Disable the button to prevent multiple clicks
+            checkButton.classList.add('opacity-50', 'cursor-not-allowed');
+
+            try {
+                // 3. This is the API call using fetch.
+                const response = await fetch("http://127.0.0.1:5000/predict", {
+                    method: "POST", // We are sending data
+                    headers: {
+                        "Content-Type": "application/json", // We are sending it in JSON format
+                    },
+                    // We convert our JavaScript object into a JSON string for sending.
+                    body: JSON.stringify({ url: urlToCheck }) 
+                });
+
+                // 3a. Check if the server responded with an error (e.g., 404 Not Found, 500 Server Error).
+                if (!response.ok) {
+                    // If the response is not ok, we create our own error to be caught by the 'catch' block.
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+
+                // 3b. If the response is ok, we parse the JSON body of the response.
+                const data = await response.json();
+                
+                // 3c. We call our function to display the result from the API data.
+                displayResult(data.result);
+
+            } catch (error) {
+                // 4. This 'catch' block runs if anything goes wrong in the 'try' block.
+                // This could be a network error (can't connect) or the HTTP error we threw.
+                console.error("Fetch Error:", error);
+                displayResult("Error"); // Call our display function with an "Error" state.
+            } finally {
+                // 5. This 'finally' block runs AFTER the 'try' or 'catch' block is finished.
+                // It's the perfect place to clean up the UI.
+                loader.classList.add('hidden'); // Hide the loader
+                checkButton.disabled = false; // Re-enable the button
+                checkButton.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        });
+
+        // 6. A helper function to update the result UI. This keeps our code clean.
+        function displayResult(status) {
+            let message = '';
+            let statusColor = '';
+            let borderColor = '';
+
+            // We use a switch statement to handle the different possible results from the API.
+            switch (status) {
+                case 'Safe':
+                    message = 'This URL appears to be safe. No threats detected.';
+                    statusColor = 'text-green-400';
+                    borderColor = 'border-green-400/50';
+                    break;
+                case 'Unsafe':
+                    message = 'Warning! This URL is flagged for malicious activity.';
+                    statusColor = 'text-red-400';
+                    borderColor = 'border-red-400/50';
+                    break;
+                case 'Potentially Unsafe':
+                    message = 'This URL is suspicious. Proceed with caution.';
+                    statusColor = 'text-yellow-400';
+                    borderColor = 'border-yellow-400/50';
+                    break;
+                default: // This will handle the "Error" case and any other unexpected result.
+                    status = 'Error';
+                    message = 'Could not analyze the URL. Please check the link or try again later.';
+                    statusColor = 'text-gray-400';
+                    borderColor = 'border-gray-600/50';
+                    break;
+            }
+
+            // Update the text and colors in the result box.
+            resultStatus.textContent = status;
+            resultMessage.textContent = message;
+            
+            // Reset classes before adding new ones to prevent conflicts.
+            resultStatus.className = 'text-2xl font-bold text-center mb-4';
+            resultBox.className = 'bg-gray-800/50 border rounded-xl p-6 mt-8';
+
+            resultStatus.classList.add(statusColor);
+            resultBox.classList.add(borderColor);
+
+            // Finally, show the result box with its smooth transition.
+            resultBox.classList.add('show');
+        }
 
     </script>
 
